@@ -48,7 +48,7 @@ def lqr():
 
     # simulation
     tspan = np.linspace(0,5,1000)
-    x0 = np.array([0.2, 0, 0])
+    x0 = np.array([0.5, 0, 0])
     wr = np.array([0, 0, 0])
     u = lambda x: -K @ (x - wr)
 
@@ -59,7 +59,7 @@ def lqr():
         alpha_b = (M*g*np.sin(theta_b) - K_m*u_val - C_b*omega_b + C_w*omega_w) / I
         alpha_w = (((I + I_w) * (K_m*u_val - C_w*omega_w)) / (I_w*I)) - ((M*g*np.sin(theta_b) - C_b*omega_b) / I)
 
-        return [omega_b, alpha_b, alpha_w] 
+        return np.hstack([omega_b, alpha_b, alpha_w])
 
     sol = solve_ivp(invertpend, [0, 5], x0, args=(u,), t_eval=tspan)
     control_input = np.apply_along_axis(u, 0, sol.y)
