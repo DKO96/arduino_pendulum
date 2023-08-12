@@ -35,15 +35,19 @@ void loop() {
   // Serial.print(" | GyY = "); Serial.print(GyY/65536  * GYROSC_RANGE); Serial.print("d/s ");
   // Serial.print("|GyZ= "); Serial.print(GyZ/65536*GYROSC_RANGE); Serial.println("d/s \n");
 
-  
+  // float AcX_g = AcX / 65536 * ACCELE_RANGE;
+  // AcX_g = max(-1.0, min(1.0, AcX_g));
+  // double theta = acos(AcX_g) * (180.0 / PI);
+  // Serial.print("Tilt Angle (degs): ");
+  // Serial.println(theta);
+
   float AcX_g = AcX / 65536 * ACCELE_RANGE;
-  AcX_g = max(-1.0, min(1.0, AcX_g));
-  double theta = acos(AcX_g) * (180.0 / PI);
-  Serial.print("Tilt Angle (degs): ");
-  Serial.println(theta);
+  float AcY_g = AcY / 65536 * ACCELE_RANGE;
+  double yaw = atan2(AcY_g, AcX_g) * (180.0 / PI);
+  Serial.print("Yaw (degs): ");
+  Serial.println(yaw);
 
-
-  delay(50);
+  delay(20);
 
 
 }

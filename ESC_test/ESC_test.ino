@@ -2,9 +2,10 @@
 
 Servo ESC;     // create servo object to control the ESC
 
-int STOP = 87; // ranges from 85 to 88
-int CW = 89;
-int CCW = 84;
+int STOP_CCW = 88; // ranges from 85 to 88
+int STOP_CW = 85;
+int CCW = 83;
+int CW = 90;
 
 void setup() {
   // Attach the ESC on pin 9
@@ -13,25 +14,21 @@ void setup() {
 }
 
 void loop() {
-  // Test multidirectional ESC
-  ESC.write(STOP);
-  Serial.println(STOP);
-  delay(2000);
-
   ESC.write(CCW);
   Serial.println(CCW);
   delay(2000);
 
-  ESC.write(STOP);
-  Serial.println(STOP);
+  ESC.write(STOP_CCW);
+  Serial.println(STOP_CCW);
   delay(2000);
 
+  ESC.write(CW);
+  Serial.println(CW);
+  delay(2000);
 
-
-  // ESC.write(CCW);
-  // Serial.println(CCW);
-  // delay(2000);
-
+  ESC.write(STOP_CW);
+  Serial.println(STOP_CW);
+  delay(2000);
 
 
 }
