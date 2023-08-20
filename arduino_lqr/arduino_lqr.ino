@@ -21,6 +21,13 @@ const double alpha = 0.05;
 double yawOffset = 0.0;
 bool isCalibrated = false;
 
+
+
+
+
+
+
+
 void setup() {
   Serial.begin(9600);
   ESC.attach(9, 1000, 2000);
@@ -87,16 +94,22 @@ void loop() {
   Serial.print(" ");
   Serial.println(yawFiltered);
 
+  // For CW direction of pendulum
   if (yawFiltered > 5.0) {
     ESC.write(CW);
-  }
-  else if (yawFiltered < -5.0) {
-    ESC.write(CCW);
-  }
-  else {
-    ESC.write(STOP);
+  } 
+  else if (yawFiltered < 5.0 && yawFiltered > 0.0) {
+    ESC.write(STOP_CW);
   }
 
-  delay(10);
+  // For CCW direction of pendulum
+  if (yawFiltered < -5.0) {
+    ESC.write(CCW);
+  }
+  else if (yawFiltered > -5.0 && yawFiltered < 0.0) {
+    ESC.write(STOP_CCW);
+  }
+
+  delay(1);
 
 }

@@ -2,10 +2,10 @@
 
 Servo ESC;     // create servo object to control the ESC
 
-int STOP_CCW = 88; // ranges from 85 to 88
-int STOP_CW = 85;
-int CCW = 83;
-int CW = 90;
+int STOP_CCW = 87; // ranges from 85 to 88
+int STOP_CW = 86;
+int CCW = 84;
+int CW = 89;
 
 void setup() {
   // Attach the ESC on pin 9
