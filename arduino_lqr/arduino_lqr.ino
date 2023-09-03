@@ -6,7 +6,10 @@
 #define ACCELE_RANGE 4
 #define GYROSC_RANGE 500
 #define BIT_RANGE 65536
-#define TIMESTEP 0.005
+#define TIMESTEP 0.1
+
+unsigned long lastTime = 0;
+unsigned long currentTime = 0;
 
 // SENSOR VARIABLES 
 const int MPU_addr = 0x68; // I2C address of the MPU-6050
@@ -14,6 +17,8 @@ float AcX, AcY, AcZ, Tmp, GyX, GyY, GyZ;
 float yaw = 0;
 float KalmanYaw = 0, KalmanUncertaintyYaw = 4;
 float KalmanOutput[] = {0,0};
+float processNoise = 16;
+float measurementNoise = 9;
 
 // MOTOR VARIABLES
 Servo ESC;
@@ -38,29 +43,16 @@ void setup() {
 }
 
 void loop() {
-  MPU_signal();
-  KalmanFilter(KalmanYaw, KalmanUncertaintyYaw, GyZ, yaw);
-  Serial.println(KalmanYaw);
-  yaw = KalmanYaw;
-
-  //Motor test
-  if (yaw > 5.0) {
-    ESC.write(CW);
-  } 
-  else if (yaw < 5.0 && yaw > 0.0) {
-    ESC.write(STOP_CW);
+  currentTime = millis();
+  if (currentTime - lastTime >= (TIMESTEP*1000)) {
+    MPU_signal();
+    KalmanFilter(KalmanYaw, KalmanUncertaintyYaw, GyZ, yaw);
+    Serial.print(60);
+    Serial.print(" ");
+    Serial.print(-60);
+    Serial.print(" ");
+    Serial.println(KalmanYaw);
   }
-
-  // For CCW direction of pendulum
-  if (yaw < -5.0) {
-    ESC.write(CCW);
-  }
-  else if (yaw > -5.0 && yaw < 0.0) {
-    ESC.write(STOP_CCW);
-  }
-
-
-  delay(TIMESTEP*1000);
 }
 
 ///////////////////////////////////////////////////////////
@@ -82,19 +74,25 @@ void MPU_signal(){
   AcX = AcX/BIT_RANGE * ACCELE_RANGE;
   AcY = AcY/BIT_RANGE * ACCELE_RANGE;
   AcZ = AcZ/BIT_RANGE * ACCELE_RANGE;
-  GyX = GyX/BIT_RANGE * ACCELE_RANGE;
-  GyY = GyY/BIT_RANGE * ACCELE_RANGE;
-  GyZ = GyZ/BIT_RANGE * ACCELE_RANGE;
+  GyX = GyX/BIT_RANGE * GYROSC_RANGE;
+  GyY = GyY/BIT_RANGE * GYROSC_RANGE;
+  GyZ = GyZ/BIT_RANGE * GYROSC_RANGE;
 
   yaw = atan2(AcY, AcX) * (180.0/PI); 
+  // Serial.print(" AcX = "); Serial.print(AcX); Serial.print("g ");
+  // Serial.print(" | AcY = "); Serial.print(AcY); Serial.print("g ");
+  // Serial.print(" | AcZ = "); Serial.print(AcZ); Serial.println("g ");
+  // Serial.print(" GyX = "); Serial.print(GyX); Serial.print("d/s ");
+  // Serial.print(" | GyY = "); Serial.print(GyY); Serial.print("d/s ");
+  // Serial.print("|GyZ= "); Serial.print(GyZ); Serial.println("d/s \n");
 }
 
 void KalmanFilter(float &KalmanState, float &KalmanUncertainty, 
                   float KalmanInput, float KalmanMeasurement) {
   KalmanState = KalmanState + TIMESTEP*KalmanInput;
-  KalmanUncertainty = KalmanUncertainty + TIMESTEP*TIMESTEP*16;
+  KalmanUncertainty = KalmanUncertainty + TIMESTEP*TIMESTEP*processNoise;
 
-  float KalmanGain = KalmanUncertainty * 1/(1*KalmanUncertainty + 9);
+  float KalmanGain = KalmanUncertainty / (KalmanUncertainty + measurementNoise);
   KalmanState = KalmanState + KalmanGain*(KalmanMeasurement - KalmanState);
   KalmanUncertainty = (1 - KalmanGain) * KalmanUncertainty;
 }
