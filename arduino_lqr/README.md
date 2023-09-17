@@ -1,6 +1,6 @@
 PlatformIO.ini file
 
-'''
+```
 [env:uno]
 platform = atmelavr
 board = uno
@@ -10,4 +10,4 @@ monitor_speed = 115200
 lib_deps = 
     MPU6050
     Servo
-'''
+```
