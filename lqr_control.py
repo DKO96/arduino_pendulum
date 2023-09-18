@@ -20,6 +20,9 @@ def lqr():
     g = 9.81        # [m*s^-2] gravitational constant
 
     K_m = 25.1e-3   # [Nm*A^-1] torque constant of bldc motor
+    min_torque = -0.1367
+    max_torque = 0.1367
+
 
     M = m_b*l_b + m_w*l_w
     I = I_b + m_w*l_w*l_w
@@ -41,15 +44,17 @@ def lqr():
                   [0, omega_b, 0],    # penalize pendulum angular rate
                   [0, 0, omega_w]])   # penalize wheel angular rate
     
-    R = 1                       # penalize control torque
+    R = 10                       # penalize control torque
 
     # LQR control gains
     K, S, E = ct.lqr(A, B, Q, R)
+    print(f"LQR Gains: {K}")
 
     # simulation
     tspan = np.linspace(0,5,1000)
     x0 = np.array([0.5, 0, 0])
     wr = np.array([0, 0, 0])
+    # wr = np.array([0, 0, desired_wheel_speed])
     u = lambda x: -K @ (x - wr)
 
     def invertpend(t, x, u_func):
@@ -62,7 +67,9 @@ def lqr():
         return np.hstack([omega_b, alpha_b, alpha_w])
 
     sol = solve_ivp(invertpend, [0, 5], x0, args=(u,), t_eval=tspan)
-    control_input = np.apply_along_axis(u, 0, sol.y)
+    # control_input = np.apply_along_axis(u, 0, sol.y)
+    raw_control_input = np.apply_along_axis(u, 0, sol.y)
+    control_input = np.clip(raw_control_input, min_torque, max_torque)
 
     df = pd.DataFrame({
         'time': sol.t,

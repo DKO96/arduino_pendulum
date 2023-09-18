@@ -2,6 +2,7 @@
 #include <Wire.h>
 #include <MPU6050.h>
 #include <Servo.h>
+#include <MatrixMath.h>
 
 #define ACCELE_RANGE 4
 #define GYROSC_RANGE 500
@@ -10,6 +11,41 @@
 
 unsigned long lastTime = 0;
 unsigned long currentTime = 0;
+
+// SYSTEM MODEL CONSTANTS
+const float l_b = 0.075;     // [m] distance between the com of the pendulum body and the pivot point
+const float l_w = 0.085;     // [m] distance between the motor axis and the pivot point
+const float m_b = 0.419;     // [kg] mass of the pendulum body
+const float m_w = 0.204;     // [kg] mass of the wheel
+const float I_b = 3.34e-3;   // [kg*m^2] moment of inertia of the pendulum body around the pivot point
+const float I_w = 0.57e-3;   // [kg*m^2] moment of inertia of the wheel and the motor around the rotational axis of the motor
+const float C_b = 1.02e-3;   // [kg*m^2*s^-1] dynamic friction coefficients of the pendulum body
+const float C_w = 0.05e-3;   // [kg*m^2*s^-1] dynamic friction coefficients of the wheel
+const float g = 9.81;        // [m*s^-2] gravitational constant
+
+// MOTOR CONSTANTS
+const float Kt = 0.00434; // Motor torque constant
+const float min_torque = -0.1367;
+const float max_torque =  0.1367;
+const float min_current = 0.0;
+const float max_current = 31.5;
+
+// LQR VARIABLES
+float M = m_b*l_b + m_w*l_w;
+float I = I_b + m_w*l_w*l_w;
+
+float K[3] = {-93.8, -9.64, -0.32};
+float A[3][3] = {
+                {0, 1, 0},
+                {M*g/I, -C_b/I, C_w/I},
+                {-M*g/I,  C_b/I, -C_w*(I_b + I_w + m_w*l_w*l_w)/(I_w*I)}
+};
+float B[3][3] = {
+                {0}, 
+                {-Kt/I}, 
+                {Kt*(I_b + I_w + m_w*l_w*l_w)/(I_w*I)}
+};
+float x0[3] = {0, 0, 0};
 
 // SENSOR VARIABLES 
 const int MPU_addr = 0x68; // I2C address of the MPU-6050
@@ -31,6 +67,9 @@ const int STOP_CCW = 88;
 void MPU_signal();
 void KalmanFilter(float &KalmanState, float &KalmanUncertainty,
                   float KalmanInput, float KalmanMeasurement);
+float lqrController(float currentState[3]);
+float torqueToCurrent(float torque);
+float currentToPWM(float current);
 
 void setup() {
   Wire.begin();
@@ -47,11 +86,21 @@ void loop() {
   if (currentTime - lastTime >= (TIMESTEP*1000)) {
     MPU_signal();
     KalmanFilter(KalmanYaw, KalmanUncertaintyYaw, GyZ, yaw);
-    Serial.print(60);
-    Serial.print(" ");
-    Serial.print(-60);
-    Serial.print(" ");
-    Serial.println(KalmanYaw);
+
+    x0[0] = KalmanYaw;
+    x0[1] = GyZ;
+    float controlInput = lqrController(x0);
+    float current = controlInput / Kt;
+    float pwm_signal = currentToPWM(current);
+
+    ESC.write(pwm_signal);
+
+    Serial.println(pwm_signal);
+    // Serial.print(60);
+    // Serial.print(" ");
+    // Serial.print(-60);
+    // Serial.print(" ");
+    // Serial.println(KalmanYaw);
   }
 }
 
@@ -95,4 +144,30 @@ void KalmanFilter(float &KalmanState, float &KalmanUncertainty,
   float KalmanGain = KalmanUncertainty / (KalmanUncertainty + measurementNoise);
   KalmanState = KalmanState + KalmanGain*(KalmanMeasurement - KalmanState);
   KalmanUncertainty = (1 - KalmanGain) * KalmanUncertainty;
+}
+
+float lqrController(float currentState[3]) {
+  float u = 0.0;
+  for (int i = 0; i < 3; i++){
+    u += K[i] * currentState[i];
+  }
+  u = -u;
+
+  if (u > max_torque) {
+    u = max_torque;
+  } else if (u < min_torque) {
+    u = min_torque;
+  }
+  
+  return u;
+}
+
+float torqueToCurrent(float torque) {
+  float current = torque / Kt;
+  return current;
+}
+
+float currentToPWM(float current) {
+  float pwm_signal = map(current, min_current, max_current, 0, 180);
+  return pwm_signal;
 }
